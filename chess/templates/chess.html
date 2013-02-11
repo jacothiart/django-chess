@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script type="text/javascript" src="{{ STATIC_URL }}js/jquery.min.js"></script>
+        <script type="text/javascript" src="{{ STATIC_URL }}js/jquery-ui.min.js"></script>
+        <style>
+            html, body {
+                padding: 0;
+                margin: 0;
+                width: 100%;
+                height: 100%;
+            }
+            #header {
+				width: 100%;
+                text-align: center;
+			}
+			.area {
+                top: 50%;
+                left: 50%;
+                margin-left: -{{ margin_left }}px;
+                margin-top: -{{ margin_top }}px;
+                position: absolute;
+                width: {{ playarea_width }}px;
+                height: {{ playarea_height }}px;
+            }
+            .block {
+                position: absolute;
+                width: {{ width }}px;
+                height: {{ height }}px;
+                background-color: #ac806d;
+                z-index: 0;
+                float: left;
+            }
+            .y, .x {
+                position: absolute;
+                width: {{ width }}px;
+                height: {{ height }}px;
+                float: left;
+                line-height: {{ height }}px;
+                text-align: center;
+            }
+            .container {
+                width: {{ container_width }}px;
+                height: {{ container_height }}px;
+                margin-left: {{ width }}px;
+            }
+            {{ css }}
+            .uneven {
+                background-color: #e8e2a4;
+            }
+            .move {
+                border:  1px solid #b34545;
+                background-color: #e09494;
+                z-index: 1;
+            }
+			.error {
+				color: red;
+			}
+			#log {
+				left: 0%;
+				position: absolute;
+				top: 80%;
+				border-top: 1px solid #000;
+				width: 100%;
+				display: none;
+			}
+			#log .accept {
+				color: #000;
+				display: inline-block;
+				padding: 5px;
+				cursor: pointer;
+			}
+			#log .reject {
+				color: #000;
+				display: inline-block;
+				padding: 5px;
+				cursor: pointer;
+			}
+            #timer {
+				left: 80%;
+				position: absolute;
+				top: 80%;
+				border: 1px solid #000;
+				width: 20%;
+				display: none;
+                font-size: 50px;
+			}
+			#users {
+				left: 75%;
+				position: absolute;
+				top: 20%;
+				bottom: 20%;
+				width: 25%;
+				height: 60%;
+				border: 1px solid #000;
+				display: none;
+				overflow: auto;
+			}
+			#users a {
+				width: 100%;
+				color: #000;
+				text-align: center;
+				display: block;
+				padding: 5px;
+				cursor: pointer;
+			}
+			#stats {
+				left: 0%;
+				position: absolute;
+				top: 20%;
+				bottom: 20%;
+				width: 25%;
+				height: 60%;
+				border: 1px solid #000;
+				display: none;
+				overflow: auto;
+				z-index: 1;
+			}
+			#stats table {
+				text-align: left;
+				z-index: 1;
+			}
+
+        </style>
+    </head>
+    <body>
+        <div id="header"><h1>Chess</h1></div>
+		<div id="playarea" class="area">
+{{ html|safe }}
+        </div>
+		<div id="users"></div>
+		<div id="log">
+			<ul></ul>
+		</div>
+        <div id="timer"></div>
+		<div id="stats"></div>
+        <script type="text/javascript" src="{{ STATIC_URL }}js/chess.js"></script>
+    </body>
+</html>
