@@ -1,4 +1,6 @@
 import json
+import time
+
 from datetime import datetime
 
 from django.db.models import Q, F
@@ -40,6 +42,8 @@ class MoveView(TemplateView):
                 move = Move.objects.filter(invitation=invitation).order_by('-created')[0]
             except IndexError:
                 move = None
+
+            time.sleep(1)
             
         return HttpResponse(json.dumps({'fromXY': move.fromXY, 'toXY': move.toXY}))
 
@@ -76,6 +80,7 @@ class InvitationView(TemplateView):
         
         while invitation.accepted == False and invitation.rejected == False:
             invitation = Invitation.objects.get(pk=pk)
+            time.sleep(1)
             
         return HttpResponse(json.dumps({'pk': invitation.pk, 'accepted': invitation.accepted, 'rejected': invitation.rejected}))
 
@@ -101,7 +106,9 @@ class InvitationListView(TemplateView):
             invitations = tuple(Invitation.objects.filter(**filter_kwargs).values_list('pk', 'from_user__username', 'accepted', 'rejected'))
             
             count = invitations.count
-        
+
+            time.sleep(1)
+            
         return HttpResponse(json.dumps({'invitations': invitations}))
         
 class ChessView(TemplateView):
