@@ -9,12 +9,14 @@ var ROOK = 'Rook';
 var KNIGHT = 'Knight';
 var BISHOP = 'Bishop';
 var PAWN = 'Pawn';
-    
+
 var BLACK = 0;
 var WHITE = 1;
 var OPEN = 2;
 var X = 0;
 var Y = 1;
+
+var TIME = 20000;
 
 var drag = null;
 var dragEnabled = null;
@@ -24,6 +26,8 @@ var help = true;
 var previousHelpCSS = new Array();
 var previousHelpKingCSS = new Array();
 var stack = new Array();
+var pollInvitation = null;
+var invitationID = null
 
 function debugPlayArea() {
     var str = '';
@@ -749,8 +753,6 @@ function assignDrop(drop) {
         if(!$(v).hasClass('ui-droppable') || ($(v).hasClass('ui-droppable') && inArray(index, dropEnabled))) {
             $(v).droppable({accept: '.block img', tolerance: 'intersect', 
                 drop: function(event, ui) {
-                    $(ui.draggable).draggable('option', 'revert', false);
-                    
                     var to = getBlockIndexFromClass($(this));
                     var from = getBlockIndexFromClass($(ui.draggable).parent());
                     
@@ -773,21 +775,44 @@ function assignDrop(drop) {
                     
                     resetZIndex();
                     
-                    currentColor = currentColor == WHITE ? BLACK : WHITE;
-                    
                     move = getMove(playarea[from], from, to);
                     
                     playarea[to] = playarea[from];
                     playarea[from] = new Shape(null, null);
                     
-                    $.get('move?move=' + move, function() {
+                    dragEnabled = new Array();
+                    assignDrag();
+                        
+                    $.ajax({
+                        url: 'move?pk=' + invitationID + '&move=' + move + '&from=' + from + '&to=' + to,
+                        dataType: 'json',
+                        timeout: TIME,
+                        method: 'get',
+                        cache: false
+                    }).done(function(data) {
+                        var temp = playarea[data['toXY']];
+                        
+                        playarea[data['toXY']] = playarea[data['fromXY']];
+                        playarea[data['fromXY']] = temp;
+                        
+                        var temp = $('.block_' + data['toXY']).html();
+                        $('.block_' + data['toXY']).html($('.block_' + data['fromXY']).html());
+                        $('.block_' + data['fromXY']).html('');
+                        
                         setTimeout('setNewDraggables()', 100)
+                    }).fail(function(data) {
+                        $('#log').show();
+                        $('#users').show();
                     })
                 }
             });
-            $(v).droppable('option', 'disabled', false);
+            try {
+                $(v).droppable('option', 'disabled', false);
+            } catch(e) {}
         } else {
-            $(v).droppable('option', 'disabled', true);
+            try {
+                $(v).droppable('option', 'disabled', true);
+            } catch(e) {}
         }
     });
 }
@@ -880,10 +905,13 @@ function assignDrag() {
                     stack.shift();
                 }
             });
-            
-            $(v).draggable('option', 'disabled', false);
+            try {
+                $(v).draggable('option', 'disabled', false);
+            } catch(e) {}
         } else {
-            $(v).draggable('option', 'disabled', true);
+            try {
+                $(v).draggable('option', 'disabled', true);
+            } catch(e) {}
         }
     });
 }
@@ -945,6 +973,109 @@ function initPlayArea() {
 $(document).ready(function() {
     currentColor = WHITE;
     initPlayArea();
-    getActivePiecesAsString();
-    assignDrag();
+    
+    $(document).on('click', '.invite', function() {
+        $('#users').hide();
+        
+        $.ajax({
+            url: 'invite?to_user=' + $(this).text(),
+            dataType: 'json',
+            method: 'get',
+            timeout: TIME,
+            cache: false
+        }).done(function(data) {
+            invitationID = data['pk'];
+            $.ajax({
+                url: '/move?pk=' + data['pk'],
+                dataType: 'json',
+                method: 'get',
+                timeout: TIME,
+                cache: false
+            }).done(function(data) {
+                var temp = playarea[data['toXY']];
+                        
+                playarea[data['toXY']] = playarea[data['fromXY']];
+                playarea[data['fromXY']] = temp;
+                
+                var temp = $('.block_' + data['toXY']).html();
+                $('.block_' + data['toXY']).html($('.block_' + data['fromXY']).html());
+                $('.block_' + data['fromXY']).html('');
+                
+                currentColor = BLACK;
+                getActivePiecesAsString();
+                assignDrag(); 
+            });
+        }).fail(function(data) {
+            $('#users').show();
+        });
+    });
+    
+    pollInvitations();
+    
+    var pollInvitation = setInterval('pollInvitations()', 5000);
+    
+    $(document).on('click', '.accept', function() {
+        var link = $(this);
+        
+        $.ajax({
+            url: $(this).attr('href'),
+            dataType: 'json',
+            method: 'get',
+            timeout: TIME,
+            cache: false
+        }).done(function(data) {
+            invitationID = data['invitation'];
+            $('#users').hide();
+            $('#log').hide();
+            
+            link.parent().remove();
+                        
+            getActivePiecesAsString();
+            assignDrag(); 
+        });
+        
+        return false;
+    });
+    
+    $(document).on('click', '.reject', function() {
+        var link = $(this);
+        
+        $.ajax({
+            url: $(this).attr('href'),
+            dataType: 'json',
+            method: 'get',
+            timeout: TIME,
+            cache: false
+        }).done(function(data) {
+            $('#users').show();
+            link.parent().remove();
+        });
+        
+        return false;
+    });
 });
+
+function pollInvitations() {
+    $.ajax({
+        url: 'invite-list?direction=to',
+        dataType: 'json',
+        method: 'get',
+        timeout: TIME,
+        cache: false
+    }).done(function(data) {
+        var invitations = data['invitations'];
+        
+        if(invitations.length > 0) {
+            $('#users').hide();
+        }
+        
+        $('#log ul').html('');
+        
+        $.each(invitations, function(k, v) {
+            $('#users').hide();
+            $('#log ul').append('<li>' + v[1] + ' has challenged you! <a class="accept" href="/accept-or-reject?accept=1&pk=' + v[0] + '">Accept</a> <a class="reject" href="/accept-or-reject?reject=1&pk=' + v[0] + '">Reject</a></li>');
+        });
+    }).fail(function(data) {
+        $('#users').show();
+    })
+}
