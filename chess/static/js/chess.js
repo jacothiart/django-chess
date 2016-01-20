@@ -1,7 +1,9 @@
-var playarea = new Array(64);
+var playArea = new Array(64);
 
 var currentColor = null;
 var debug = false;
+var gameOver = true;
+var timerID = null;
 
 var KING = 'King';
 var QUEEN = 'Queen';
@@ -10,24 +12,24 @@ var KNIGHT = 'Knight';
 var BISHOP = 'Bishop';
 var PAWN = 'Pawn';
 
-var BLACK = 0;
-var WHITE = 1;
+var LIGHT_YELLOW = '#e8e2a4';
+var BROWN = '#ac806d';
+
+var BLACK = 1;
+var WHITE = 2;
 var OPEN = 2;
 var X = 0;
 var Y = 1;
 
 var TIME = 20000;
 
-var drag = null;
-var dragEnabled = null;
-var dropEnabled = null;
-
-var help = true;
-var previousHelpCSS = new Array();
-var previousHelpKingCSS = new Array();
-var stack = new Array();
 var pollInvitation = null;
 var invitationID = null
+var dropEnabled = new Array();
+var clickedItem = null;
+var drag = '';
+
+var emptyPiece = null;
 
 function debugPlayArea() {
     var str = '';
@@ -41,629 +43,44 @@ function debugPlayArea() {
             index = fromXY(x, y);
             color = null
             
-            if(playarea[index].color == WHITE) {
+            if(playArea[index].color == WHITE) {
                 color = 'White';
             }
-            if(playarea[index].color == BLACK) {
+            if(playArea[index].color == BLACK) {
                 color = 'Black';
             }
 
-            str += color + ' ' + playarea[index].name + ' - ';
+            str += color + ' ' + playArea[index].name + ' - ';
         }
         
     }
 }
 
-var Shape = function(name, color) {
-    this.name = name;
-    this.color = color;
-    this.img = function() {
-        if(this.color == null) {
-            return null;
-        }
-        var color = this.color == WHITE ? 'white' : 'black';
-        var shape = eval('typeof this').lowercase()
-        return color + '/' + shape;
-    }
-}
-var moveKing = function (index, dangerTest) {
-    var obj = playarea[index];
-    var xy = toXY(index);
-    var drop = '';
-    var toIndex = null;
-
-    var a = (obj.color == WHITE) ? WHITE : BLACK;
-    var x = xy[X];
-    var y = xy[Y] - 1;
+function isCheckMate(color) {
+	var piece;
+	var random = new Array();
+    dropEnabled = new Array();
     
-    function kingMethod(dTest) {
-        var danger = false;
-        
-        if((playarea[toIndex].color == null  || playarea[index].color != playarea[toIndex].color) && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
-            }
-        }
-        
-        if(playarea[toIndex].color != null  && playarea[index].color != playarea[toIndex].color && dTest && playarea[toIndex].name == KING) {
-            danger = true;
-        }
-        
-        return danger;
-    }
-    
-    if(y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-
-    x = xy[X] - 1;
-    y = xy[Y] - 1;
-
-    if(x >= 0 && y >= 0) {
-        toIndex = fromXY(x, y);
-       
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X] - 1;
-    y = xy[Y];
-
-    if(x >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X] - 1;
-    y = xy[Y] + 1;
-    
-    if(x >= 0 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X];
-    y = xy[Y] + 1;
-
-    if(y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X] + 1;
-    y = xy[Y] + 1;
-
-    if(x <= 7 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X] + 1;
-    y = xy[Y];
-
-    if(x <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    x = xy[X] + 1;
-    y = xy[Y] - 1;
-
-    if(x <= 7 && y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(kingMethod(dangerTest)) {
-            return true;
-        }
-    }
-    
-    return drop;
-}
-
-var moveQueen = function(index, dangerTest) {
-    var drop = '';
-    
-    drop += moveRook(index, dangerTest);
-	drop += moveBishop(index, dangerTest);
-    
-    return drop;
-}
-
-var moveRook = function(index, dangerTest) {
-    var obj = playarea[index];
-    var xy = toXY(index);
-    var drop = '';
-    var toIndex = null;
-    
-    var a = (obj.color == WHITE) ? WHITE : BLACK;
-    var b = (obj.color == WHITE) ? BLACK : WHITE;
-    var x = xy[X];
-    var y = xy[Y];
-
-    function rookMethod(dTest) {
-        var danger = false;
-        
-        if((playarea[toIndex].color == null  || playarea[index].color != playarea[toIndex].color) && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
-            }
-        }
-        
-        if(playarea[toIndex].color != null  && playarea[index].color != playarea[toIndex].color && dTest && (playarea[toIndex].name == ROOK || playarea[toIndex].name == QUEEN)) {
-            danger = true;
-        }
-        
-        return danger;
-    }
-    
-    while(x != 7) {
-        toIndex = fromXY(x + 1, xy[Y]);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(rookMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x ++;
-    }
-    
-    x = xy[X];
+	for(var i = 0; i < playArea.length; i ++) {
+		piece = playArea[i];
 		
-    while(x != 0) {
-        toIndex = fromXY(x - 1, xy[Y]);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(rookMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x --;
-    }
-    
-    x = xy[X];
-    while(y != 7) {
-        toIndex = fromXY(xy[X], y + 1);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(rookMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        y ++;
-    }
-    
-    y = xy[Y];
-    
-    while(y != 0) {
-        toIndex = fromXY(xy[X], y - 1);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-       
-        if(rookMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        y --;
-    }
-    
-    return drop;
-}
-
-var moveKnight = function(index, dangerTest) {
-    var obj = playarea[index];
-    var xy = toXY(index);
-    var drop = '';
-    var toIndex = null;
-    
-    var a = (obj.color == WHITE) ? WHITE : BLACK;
-    var x = xy[X] - 2;
-    var y = xy[Y] - 1;
-    
-    function knightMethod(dTest) {
-        var danger = false;
-        
-        if((playarea[toIndex].color == null || playarea[index].color != playarea[toIndex].color) && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
+		if(piece.color == color) {
+            for(var j = 0; j < playArea.length; j ++) {
+                playArea[j].occupied = false;
             }
-        }
-        
-        if(playarea[toIndex].color != null  && playarea[index].color != playarea[toIndex].color && dTest && playarea[toIndex].name == KNIGHT) {
-            danger = true;
-        }
-        
-        return danger;
-    }
-    
-    if(x >= 0 && y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }
-
-    x = xy[X] - 1;
-    y = xy[Y] - 2;
-		
-	if(x >= 0 && y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-    x = xy[X] + 1;
-    y = xy[Y] - 2;
-
-    if(x <= 7 && y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-	x = xy[X] + 2;
-	y = xy[Y] - 1;
-
-    if(x <= 7 && y >= 0) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-    x = xy[X] + 2;
-    y = xy[Y] + 1;
-		
-    if(x <= 7 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-    x = xy[X] + 1;
-    y = xy[Y] + 2;
-
-    if(x <= 7 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-    x = xy[X] - 1;
-    y = xy[Y] + 2;
-
-    if(x >= 0 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-    x = xy[X] - 2;
-    y = xy[Y] + 1;
-
-	if(x >= 0 && y <= 7) {
-        toIndex = fromXY(x, y);
-        
-        if(knightMethod(dangerTest)) {
-            return true;
-        }
-    }	
-		
-	return drop;
-}
-
-var moveBishop = function(index, dangerTest) {
-    var obj = playarea[index];
-    var xy = toXY(index);
-    var drop = '';
-    var toIndex = null;
-
-    var a = (obj.color == WHITE) ? WHITE : BLACK;
-    var b = (obj.color == WHITE) ? BLACK : WHITE;
-    var x = xy[X];
-    var y = xy[Y];
-    
-    function bishopMethod(dTest) {
-        var danger = false;
-        
-        if((playarea[toIndex].color == null || playarea[index].color != playarea[toIndex].color) && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
-            }
-        }
-        
-        if(playarea[toIndex].color != null && playarea[index].color != playarea[toIndex].color && dTest && (playarea[toIndex].name == BISHOP || playarea[toIndex].name == QUEEN)) {
-            danger = true;
-        }
-        
-        return danger;
-    }
-    
-    while(true) {
-        if(x == 7 || y == 0) {
-            break;
-        }
-        
-        toIndex = fromXY(x + 1, y - 1);
-
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(bishopMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x ++;
-        y --;
-    }
-    
-    x = xy[X];
-    y = xy[Y];
-    
-    while(true) {
-        if (x == 7 || y == 7) {
-            break;
-        }
-        
-        toIndex = fromXY(x + 1, y + 1);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(bishopMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x ++;
-        y ++;
-    }
-    
-    x = xy[X];
-    y = xy[Y];
-        
-    while(true) {
-        
-        if(x == 0 || y == 7) {
-            break;
-        }
-        
-        toIndex = fromXY(x - 1, y + 1);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(bishopMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x --;
-        y ++;
-    }
-    
-    x = xy[X];
-    y = xy[Y];
-    
-    while(true) {
-        
-        if(x == 0 || y == 0) {
-            break;
-        }
-        toIndex = fromXY(x - 1, y - 1);
-        
-        if(playarea[toIndex].color == a) {
-            break;
-        }
-        
-        if(bishopMethod(dangerTest)) {
-            return true;
-        }
-        
-        if(playarea[toIndex].color == b) {
-            break;
-        }
-        
-        x = x - 1;
-        y = y - 1;
-    }
-    
-    return drop
-}
-
-var movePawn = function(index, dangerTest) {
-    var obj = playarea[index];
-    var xy = toXY(index);
-    var drop = '';
-    var toIndex = null;
-    
-    function pawnMethod1(dTest) {
-        var danger = false;
-        
-        if(playarea[toIndex].color == null && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
-            }
-        }
-        
-        return danger;
-    }
-    
-    function pawnMethod2(dTest) {
-        var danger = false;
-        
-        if(playarea[toIndex].color != null && playarea[index].color != playarea[toIndex].color && !dTest) {
-            if(!validate(index, toIndex)) {
-                drop += '.block_' + toIndex + ', ';
-                dropEnabled.push(toIndex);
-                
-                if(help) {
-                    previousHelpCSS.push(new Array(toIndex, $('.block_' + toIndex).css('background-color')));
-                }
-            }
-        }
-        
-        if(playarea[toIndex].color != null  && playarea[index].color != playarea[toIndex].color && dTest && playarea[toIndex].name == PAWN) {
-            danger = true;
-        }
-        
-        return danger;
-    }
-    
-    if(obj.color == WHITE) {
-        if(xy[Y] == 6) {
-            toIndex = fromXY(xy[X], xy[Y] - 2);
-            if(pawnMethod1(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[Y] != 0) {
-            toIndex = fromXY(xy[X], xy[Y] - 1);
-            if(pawnMethod1(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[X] != 0 && xy[Y] != 0) {
-            toIndex = fromXY(xy[X] - 1, xy[Y] - 1);
-            if(pawnMethod2(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[X] != 7 && xy[Y] != 0) {
-            toIndex = fromXY(xy[X] + 1, xy[Y] - 1);
-            if(pawnMethod2(dangerTest)) {
-                return true;
-            }
-        }
-    } else {
-        if(xy[Y] == 1) {
-            toIndex = fromXY(xy[X], xy[Y] + 2);
-            if(pawnMethod1(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[Y] != 7) {
-            toIndex = fromXY(xy[X], xy[Y] + 1);
-            if(pawnMethod1(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[X] != 0 && xy[Y] != 7) {
-            toIndex = fromXY(xy[X] - 1, xy[Y] + 1);
-            if(pawnMethod2(dangerTest)) {
-                return true;
-            }
-        }
-        
-        if(xy[X] != 7 && xy[Y] != 7) {
-            toIndex = fromXY(xy[X] + 1, xy[Y] + 1);
-            if(pawnMethod2(dangerTest)) {
-                return true;
-            }
-        }
-    }
-    return drop
+            piece.move();
+			setDrop(false);
+            
+			if(dropEnabled.length > 0) {
+				random.push(i);
+			}
+		}
+	}
+	if(random.length > 0) {
+		return false;
+	} else {
+		return true;
+	}
 }
 
 function toXY(position) {
@@ -694,8 +111,8 @@ function fromXY(x, y) {
 
 function validate(fromIndex, toIndex) {
 	var danger = false;
-    var tempFromPiece = playarea[fromIndex];
-    var tempToPiece = playarea[toIndex];
+    var tempFromPiece = playArea[fromIndex];
+    var tempToPiece = playArea[toIndex];
     
     var kingIndex = getTheKingIndex(tempFromPiece.color);
     
@@ -703,36 +120,54 @@ function validate(fromIndex, toIndex) {
         kingIndex = toIndex;
     }
     
-    playarea[fromIndex] = new Shape(null, null);
-	playarea[toIndex] = tempFromPiece;
+    playArea[fromIndex] = new Empty(null);
+	playArea[toIndex] = tempFromPiece;
     
 	if(pieceInDanger(kingIndex)) {
         danger = true;
 	}
 	
-    playarea[fromIndex] = tempFromPiece;
-    playarea[toIndex] = tempToPiece;
+    playArea[fromIndex] = tempFromPiece;
+    playArea[toIndex] = tempToPiece;
     
 	return danger;
 }
 
-function pieceInDanger(pieceIndex) {
+function pieceInDanger(index) {
+    var piece = playArea[index];
     
-    if(movePawn(pieceIndex, true)) {
+    var pawn = new Pawn(piece.id, piece.color);
+    playArea[index] = pawn;
+    
+    if(pawn.danger()) {
+        playArea[index] = piece;
         return true;
     }
     
-    if(moveQueen(pieceIndex, true)) {
+    var queen = new Queen(piece.id, piece.color);
+    playArea[index] = queen;
+    
+    if(queen.danger()) {
+        playArea[index] = piece;
+        return true;
+    }
+    var knight = new Knight(piece.id, piece.color);
+    playArea[index] = knight;
+    
+    if(knight.danger()) {
+        playArea[index] = piece;
         return true;
     }
     
-    if(moveKnight(pieceIndex, true)) {
+    var king = new King(piece.id, piece.color);
+    playArea[index] = king;
+    
+    if(king.danger()) {
+        playArea[index] = piece;
         return true;
     }
     
-    if(moveKing(pieceIndex, true)) {
-        return true;
-    }
+    playArea[index] = piece;
     
     return false;
 }
@@ -746,98 +181,245 @@ function inArray(key, array) {
     return false;
 }
 
+function updateTimer() {
+    $('span.time').html(parseInt($('span.time').html()) + 1);
+}
+
 function assignDrop(drop) {
     $.each($('.block'), function(k, v) {
         var index = getBlockIndexFromClass($(v));
-        
-        if(!$(v).hasClass('ui-droppable') || ($(v).hasClass('ui-droppable') && inArray(index, dropEnabled))) {
-            $(v).droppable({accept: '.block img', tolerance: 'intersect', 
-                drop: function(event, ui) {
-                    var to = getBlockIndexFromClass($(this));
-                    var from = getBlockIndexFromClass($(ui.draggable).parent());
-                    
-                    $(this).html($(ui.draggable));
-                    var clone = $(this).clone();
-                    
-                    if($(ui.draggable).parent().hasClass('uneven')) {
-                        $(this).addClass('uneven');
-                    } else {
-                        $(this).removeClass('uneven');
-                    }
-                    
-                    if(clone.hasClass('uneven')) {
-                        $(ui.draggable).parent().addClass('uneven');
-                    } else {
-                        $(ui.draggable).parent().removeClass('uneven');
-                    }
-                    
-                    $(ui.draggable).attr('style', '');
-                    
-                    resetZIndex();
-                    
-                    move = getMove(playarea[from], from, to);
-                    
-                    playarea[to] = playarea[from];
-                    playarea[from] = new Shape(null, null);
-                    
-                    dragEnabled = new Array();
-                    assignDrag();
-                        
-                    $.ajax({
-                        url: 'move?pk=' + invitationID + '&move=' + move + '&from=' + from + '&to=' + to,
-                        dataType: 'json',
-                        timeout: TIME,
-                        method: 'get',
-                        cache: false
-                    }).done(function(data) {
-                        var temp = playarea[data['toXY']];
-                        
-                        playarea[data['toXY']] = playarea[data['fromXY']];
-                        playarea[data['fromXY']] = temp;
-                        
-                        var temp = $('.block_' + data['toXY']).html();
-                        $('.block_' + data['toXY']).html($('.block_' + data['fromXY']).html());
-                        $('.block_' + data['fromXY']).html('');
-                        
-                        setTimeout('setNewDraggables()', 100)
-                    }).fail(function(data) {
-                        $('#log').show();
-                        $('#users').show();
-                    })
+        $(document).on('click', '.block_' + index, function() {
+           if(inArray(index, dropEnabled)) {
+                if(gameOver) {
+                    gameOver = false;
+                    timerID = setInterval('updateTimer()', 1000)
                 }
-            });
-            try {
-                $(v).droppable('option', 'disabled', false);
-            } catch(e) {}
-        } else {
-            try {
-                $(v).droppable('option', 'disabled', true);
-            } catch(e) {}
-        }
+                
+                dropEnabled = new Array();
+                setBackgrounds();
+                
+                var to = getBlockIndexFromClass($(v));
+                var from = getBlockIndexFromClass(clickedItem);
+                var temp = clickedItem.clone();
+                var castled = false;
+                
+                if(playArea[from].name == KING && (playArea[from].isCastlingLeft || playArea[from].isCastlingRight) && playArea[to].name == ROOK) {
+                    $(clickedItem).html($(v).text());
+                    playArea[from].isCastlingLeft = false;
+                    playArea[from].isCastlingRight = false;
+                    castled = true;
+                }
+                
+                if(playArea[from].name == PAWN && playArea[from].enPassantIndex != null && playArea[playArea[from].enPassantIndex].name == PAWN) {
+                    var enPassant = $('.block_' + playArea[from].enPassantIndex);
+                    enPassant.html(emptyPiece);
+                    playArea[from].enPassantIndex = null;
+                }
+
+                $(v).html(temp.text());
+                
+                resetZIndex();
+                
+                move = getMove(playArea[from], from, to);
+                
+                temp = new Empty(null);
+                
+                if(castled) {
+                    temp = playArea[to];
+                } else {
+                    $('.block_' + from).html(emptyPiece);
+                }
+                
+                playArea[to] = playArea[from];
+                playArea[from] = temp;
+                
+                var response;
+                
+                if(isCheckMate(BLACK)) {
+                    clearInterval(timerID);
+                    
+                    $.post('/score/', {score: parseInt($('.time').html())}, function(data){
+                        $('.area').html('<h1 class="win">You Win!</h1>' + data);
+                    });
+                }
+   
+                for(var i = 0; i < playArea.length; i ++) {
+                    playArea[i].occupied = false;
+                }
+                
+                var kingColor = currentColor == WHITE ? BLACK : WHITE;
+                var kingIndex = getTheKingIndex(kingColor);
+
+                if(pieceInDanger(kingIndex)) {
+                    $('.block_' + kingIndex).css('background-color', 'red');
+                }
+                
+                playArea[to].moveCount += 1;
+                currentColor = BLACK;
+                
+                var move = artificialIntelligence();
+                $('.block_' + move[1]).html($('.block_' + move[0]).text());
+                $('.block_' + move[0]).html(emptyPiece);
+                playArea[move[1]] = playArea[move[0]];
+                playArea[move[0]] = new Empty(null);
+                playArea[move[1]].moveCount ++;
+                
+                currentColor = WHITE;   
+                if(isCheckMate(WHITE)) {
+                    $('.area').html('<h1>You Loose!</h1>');
+                }
+                dropEnabled = new Array();
+                for(var j = 0; j < playArea.length; j ++) {
+                    playArea[j].occupied = false;
+                }
+                getActivePiecesAsString();
+                assignDrag();
+            }
+        });
     });
 }
 
-function setNewDraggables() {
-    var kingIndex = getTheKingIndex(currentColor);
+function artificialIntelligence() {
+    var priority = new Array(
+		new Array(),
+		new Array(),
+		new Array(),
+		new Array(),
+		new Array(),
+		new Array()
+	);
+	
+	for(i = 0; i < playArea.length; i ++) {
+		if(playArea[i].color == BLACK) {
+			priority[playArea[i].priority - 1].push(i);
+		}
+	}
+	
+	var priorityList = new Array();
+	
+	for(i = 0; i < priority.length; i ++) {
+		for(var j = 0; j < priority[i].length; j ++) {
+			priorityList.push(priority[i][j]);
+		}
+	}
     
-    if(previousHelpKingCSS.length > 0) {
-        $('.block_' + previousHelpKingCSS[0]).css('background-color', previousHelpKingCSS[1])
-    }
+    priorityList = priorityList.reverse();
     
-    if(pieceInDanger(kingIndex)) {
-        previousHelpKingCSS = new Array();
-        if(help) {
-            previousHelpKingCSS.push(kingIndex);
-            previousHelpKingCSS.push($('.block_' + kingIndex).css('background-color'));
-        }
+    var fromIndex = null;
+	var temp = null;
+	var temp2 = null;
+	var futureMove = null;
+	var move = null;
+	var d = null;
+	var dropTemp = new Array();
+    
+    for(var i = 0; i < priorityList.length; i ++) {
+		fromIndex = priorityList[i];
         
-        $('.block_' + kingIndex).css('background-color', 'red');
-    }
-
-    getActivePiecesAsString();
-    assignDrag();
-}
+        if(pieceInDanger(fromIndex)) {
+            for(var j = 0; j < playArea.length; j ++) {
+                playArea[j].occupied = false;
+            }
+            playArea[fromIndex].move();
+            setDrop(false);
+            
+            if(dropEnabled.length > 0) {
+                var moves = new Array();
                 
+                for(j = 0; j < dropEnabled.length; j ++) {
+                    var movePriority = 0;
+                    
+                    temp = playArea[fromIndex];
+                    playArea[fromIndex] = new Empty(null);
+                    temp2 = playArea[dropEnabled[j]];
+                    playArea[dropEnabled[j]] = temp;
+                    d = dropEnabled[j];
+                    
+                    if(playArea[d].name != null) {
+                        movePriority = playArea[d].priority;
+                    }
+                    
+                    moves.push(new Move(d, pieceInDanger(d), movePriority));
+                    
+                    playArea[fromIndex] = temp;
+                    playArea[dropEnabled[j]] = temp2;
+                }
+                
+                var currentMove = moves[0];
+                
+                for(var j = 1; j < moves.length; j ++) {
+                    if((currentMove.danger && moves[j].danger) || (!currentMove.danger && !moves[j].danger)) {
+                        if(moves[j].priority >= currentMove.priority) {
+                            currentMove = moves[j];
+                        }
+                    } else {
+                        if(!currentMove.danger && moves[j].danger) {
+                            currentMove = moves[j];
+                        }
+                    }
+                }
+                return new Array(fromIndex, currentMove.index);
+            }
+        }
+    }
+    
+    var run = true;
+    var random = new Array();
+    
+    for(var i = 0; i < playArea.length; i ++) {
+		piece = playArea[i];
+		if(piece.color == BLACK) {
+            for(var j = 0; j < playArea.length; j ++) {
+                playArea[j].occupied = false;
+            }
+			piece.move();
+            setDrop(false);
+			
+			if(dropEnabled.length > 0) {
+				random.push(i);
+			}
+		}
+	}
+    
+    var index;
+    
+    while (run) {
+		if(random.length > 0) {
+			var r = Math.floor((Math.random() * random.length) + 1);
+			
+			fromIndex = random[r - 1];
+            
+            for(var j = 0; j < playArea.length; j ++) {
+                playArea[j].occupied = false;
+            }
+            
+            playArea[fromIndex].move();
+			setDrop(false);
+            
+			if(dropEnabled.length > 0) {
+				return new Array(fromIndex, dropEnabled[0]);
+			} else {
+				var index = 0;
+				for (var m = 0; m < random.length; m ++) {
+					if(random[m] == r) {
+						index = m;
+					}
+				}
+				random.remove(index);
+				random.sort();
+			}
+		} else {
+			return new Array(fromIndex, dropEnabled[0]);
+		}
+	}
+}
+ 
+var Move = function (index, danger, priority) {
+	this.index = index;
+	this.danger = danger;
+	this.priority = priority;
+}
+           
 function getMove(fromObj, from, to) {
     var color = fromObj.color == WHITE ? 'White': 'Black';
     
@@ -866,70 +448,150 @@ function getBlockIndexFromClass(element) {
 }
 
 function assignDrag() {
-    $.each($('.block img'), function(k, v) {
-        var index = getBlockIndexFromClass($(v).parent());
-        
-        if(!$(v).hasClass('ui-draggable') || ($(v).hasClass('ui-draggable') && inArray(index, dragEnabled))) {
-            $(v).css('cursor', 'move');
-            
-            $(v).draggable({cursor: 'move', revert: true, containment: '.container',
-                start: function(event, ui) {
-                    $(this).parent().css({'z-index': 1});
-                    
-                    var blockIndex = getBlockIndexFromClass($(this).parent());
-                    var block = playarea[blockIndex];
-                    
-                    
-                    previousHelpCSS = new Array();
-                        
-                    dropEnabled = new Array();
-                    var drop = eval('move' + block.name + '(blockIndex, false);');
-                    
-                    if(drop != '') {
-                        drop = drop.substring(0, drop.length - 2)
-                        if(help) {
-                            $(drop).css('background-color', 'green');
-                        }
-                        stack.push(previousHelpCSS);
-                        assignDrop(drop);
-                    }
-                },
-                stop: function(event, ui) {
-                    if(help) {
-                        if(stack.length > 0) {
-                            for(var i = 0; i < stack[0].length; i ++) {
-                                $('.block_' + stack[0][i][0]).css('background-color', stack[0][i][1]);
-                            }
-                        }
-                    }
-                    stack.shift();
+    $(document).on('click', '.block', function() {
+        var index = getBlockIndexFromClass($(this));
+        var from = clickedItem == null ? null : getBlockIndexFromClass(clickedItem);
+
+        if(inArray(index, dragEnabled)) {
+            if(from != null && (playArea[from].isCastlingLeft || playArea[from].isCastlingRight) && playArea[index].name == ROOK) {
+            } else {
+                setBackgrounds();
+                clickedItem = $(this);
+                $(this).css({'z-index': 1});
+
+                var block = playArea[index];
+                for(var i = 0; i < playArea.length; i ++) {
+                    playArea[i].occupied = false;
                 }
-            });
-            try {
-                $(v).draggable('option', 'disabled', false);
-            } catch(e) {}
-        } else {
-            try {
-                $(v).draggable('option', 'disabled', true);
-            } catch(e) {}
+                block.move();
+
+                var piece;
+                var drop = '';
+                var key;
+
+                var drop = setDrop(true);
+
+                if(drop != '') {
+                    drop = drop.substring(0, drop.length - 2)
+                    assignDrop(drop);
+                    $(drag).unbind('click');
+                }
+            }
         }
     });
 }
 
+function setDrop(placeholders) {
+    var drop = '';
+    
+    dropEnabled = new Array();
+                
+    for(var i = 0; i < playArea.length; i ++) {
+        piece = playArea[i];
+        
+        if(piece.occupied) {
+            key = '.block_' + i;
+            drop += key + ', ';
+            dropEnabled.push(i);
+            if(placeholders) {
+                $(key).css('background-color', piece.virtualColor);
+            }
+        }
+    }    
+    
+    return drop;
+}
+
 function resetZIndex() {
-    for(var i = 0; i < playarea.length; i ++) {
+    for(var i = 0; i < playArea.length; i ++) {
         $('.block_' + i).css('z-index', 0);
     }
 }
 
+function setBackgrounds() {
+    var color;
+
+    for(var i = 0; i < 8; i ++) {
+        if(i % 2 == 0)  {
+            color = LIGHT_YELLOW;
+        } else {
+            color = BROWN;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 8; i < 16; i ++) {
+        if(i % 2 == 0)  {
+            color = BROWN;
+        } else {
+            color = LIGHT_YELLOW;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 16; i < 24; i ++) {
+        if(i % 2 == 0)  {
+            color = LIGHT_YELLOW;
+        } else {
+            color = BROWN;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 24; i < 32; i ++) {
+        if(i % 2 == 0)  {
+            color = BROWN;
+        } else {
+            color = LIGHT_YELLOW;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 32; i < 40; i ++) {
+        if(i % 2 == 0)  {
+            color = LIGHT_YELLOW;
+        } else {
+            color = BROWN;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 40; i < 48; i ++) {
+        if(i % 2 == 0)  {
+            color = BROWN;
+        } else {
+            color = LIGHT_YELLOW;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 48; i < 56; i ++) {
+        if(i % 2 == 0)  {
+            color = LIGHT_YELLOW;
+        } else {
+            color = BROWN;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+
+    for(var i = 56; i < 64; i ++) {
+        if(i % 2 == 0)  {
+            color = BROWN;
+        } else {
+            color = LIGHT_YELLOW;
+        }
+        $('.block_' + i).css('background-color', color);
+    }
+}
+    
 function getActivePiecesAsString() {
     drag = '';
     dragEnabled = new Array();
     
-    for(var i = 0; i < playarea.length; i ++) {
-        if(playarea[i].color == currentColor) {
+    for(var i = 0; i < playArea.length; i ++) {
+        if(playArea[i].color == currentColor) {
+            drag += '.block_' + i + ', ';
             dragEnabled.push(i);
-            drag += '.block_' + i + ' img, ';
         }
     }
     
@@ -937,145 +599,60 @@ function getActivePiecesAsString() {
 }
 
 function getTheKingIndex(color) {
-    for(var i = 0; i < playarea.length; i ++) {
-        if(playarea[i].color == color && playarea[i].name == KING) {
+    for(var i = 0; i < playArea.length; i ++) {
+        if(playArea[i].color == color && playArea[i].name == KING) {
+            return i;
+        }
+    }
+}
+
+function getThePieceIndex(piece) {
+    for(var i = 0; i < playArea.length; i ++) {
+        if(playArea[i].id == piece.id) {
             return i;
         }
     }
 }
 
 function initPlayArea() {
-    playarea[0] = new Shape(ROOK, BLACK), playarea[7] = new Shape(ROOK, BLACK);
-    playarea[1] = new Shape(KNIGHT, BLACK), playarea[6] = new Shape(KNIGHT, BLACK);
-    playarea[2] = new Shape(BISHOP, BLACK), playarea[5] = new Shape(BISHOP, BLACK);
-    playarea[3] = new Shape(QUEEN, BLACK);
-    playarea[4] = new Shape(KING, BLACK);
+    playArea[0] = new Rook(0, BLACK), playArea[7] = new Rook(7, BLACK);
+    playArea[1] = new Knight(1, BLACK), playArea[6] = new Knight(6, BLACK);
+    playArea[2] = new Bishop(2, BLACK), playArea[5] = new Bishop(5, BLACK);
+    playArea[3] = new Queen(3, BLACK);
+    playArea[4] = new King(4, BLACK);
     
     for(var i = 8; i < 16; i ++) {
-        playarea[i] = new Shape(PAWN, BLACK);
+        playArea[i] = new Pawn(i, BLACK);
     }
     
     for(var i = 16; i < 48; i ++) {
-        playarea[i] = new Shape(null, null);
+        playArea[i] = new Empty(i);
     }
     
-    playarea[56] = new Shape(ROOK, WHITE), playarea[63] = new Shape(ROOK, WHITE);
-    playarea[57] = new Shape(KNIGHT, WHITE), playarea[62] = new Shape(KNIGHT, WHITE);
-    playarea[58] = new Shape(BISHOP, WHITE), playarea[61] = new Shape(BISHOP, WHITE);
-    playarea[59] = new Shape(QUEEN, WHITE);
-    playarea[60] = new Shape(KING, WHITE);
+    playArea[56] = new Rook(56, WHITE), playArea[63] = new Rook(63, WHITE);
+    playArea[57] = new Knight(57, WHITE), playArea[62] = new Knight(62, WHITE);
+    playArea[58] = new Bishop(58, WHITE), playArea[61] = new Bishop(61, WHITE);
+    playArea[59] = new Queen(59, WHITE);
+    playArea[60] = new King(60, WHITE);
     
     for(var i = 48; i < 56; i ++) {
-        playarea[i] = new Shape(PAWN, WHITE);
+        playArea[i] = new Pawn(i, WHITE);
     }
 }
 
+function adaptToResponse() {
+    $('.block').css({'font-size': $('.block').width() - 5 + 'px', 'line-height': $('.block').width() + 'px'});
+    $('.block').height($('.block').width());
+}
+$(window).resize(function() {
+    adaptToResponse();
+});
 $(document).ready(function() {
     currentColor = WHITE;
+    emptyPiece = '&nbsp;';
     initPlayArea();
-    
-    $(document).on('click', '.invite', function() {
-        $('#users').hide();
-        
-        $.ajax({
-            url: 'invite?to_user=' + $(this).text(),
-            dataType: 'json',
-            method: 'get',
-            timeout: TIME,
-            cache: false
-        }).done(function(data) {
-            invitationID = data['pk'];
-            $.ajax({
-                url: '/move?pk=' + data['pk'],
-                dataType: 'json',
-                method: 'get',
-                timeout: TIME,
-                cache: false
-            }).done(function(data) {
-                var temp = playarea[data['toXY']];
-                        
-                playarea[data['toXY']] = playarea[data['fromXY']];
-                playarea[data['fromXY']] = temp;
-                
-                var temp = $('.block_' + data['toXY']).html();
-                $('.block_' + data['toXY']).html($('.block_' + data['fromXY']).html());
-                $('.block_' + data['fromXY']).html('');
-                
-                currentColor = BLACK;
-                getActivePiecesAsString();
-                assignDrag(); 
-            });
-        }).fail(function(data) {
-            $('#users').show();
-        });
-    });
-    
-    pollInvitations();
-    
-    var pollInvitation = setInterval('pollInvitations()', 5000);
-    
-    $(document).on('click', '.accept', function() {
-        var link = $(this);
-        
-        $.ajax({
-            url: $(this).attr('href'),
-            dataType: 'json',
-            method: 'get',
-            timeout: TIME,
-            cache: false
-        }).done(function(data) {
-            invitationID = data['invitation'];
-            $('#users').hide();
-            $('#log').hide();
-            
-            link.parent().remove();
-                        
-            getActivePiecesAsString();
-            assignDrag(); 
-        });
-        
-        return false;
-    });
-    
-    $(document).on('click', '.reject', function() {
-        var link = $(this);
-        
-        $.ajax({
-            url: $(this).attr('href'),
-            dataType: 'json',
-            method: 'get',
-            timeout: TIME,
-            cache: false
-        }).done(function(data) {
-            $('#users').show();
-            link.parent().remove();
-        });
-        
-        return false;
-    });
-});
+    adaptToResponse();
 
-function pollInvitations() {
-    $.ajax({
-        url: 'invite-list?direction=to',
-        dataType: 'json',
-        method: 'get',
-        timeout: TIME,
-        cache: false
-    }).done(function(data) {
-        var invitations = data['invitations'];
-        
-        if(invitations.length > 0) {
-            $('#users').hide();
-        }
-        
-        $('#log ul').html('');
-        
-        $.each(invitations, function(k, v) {
-            $('#users').hide();
-            $('#log ul').append('<li>' + v[1] + ' has challenged you! <a class="accept" href="/accept-or-reject?accept=1&pk=' + v[0] + '">Accept</a> <a class="reject" href="/accept-or-reject?reject=1&pk=' + v[0] + '">Reject</a></li>');
-        });
-    }).fail(function(data) {
-        $('#users').show();
-    })
-}
+    getActivePiecesAsString();
+    assignDrag();
+});
